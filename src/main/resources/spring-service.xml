@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:context="http://www.springframework.org/schema/context"
+       xmlns:tx="http://www.springframework.org/schema/tx"
+       xmlns:aop="http://www.springframework.org/schema/aop"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+       http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/context
+       http://www.springframework.org/schema/context/spring-context.xsd
+        http://www.springframework.org/schema/tx
+       http://www.springframework.org/schema/tx/spring-tx.xsd
+        http://www.springframework.org/schema/aop
+       http://www.springframework.org/schema/aop/spring-aop.xsd">
+
+    <!-- 配置整合mybatis -->
+
+    <!-- 1.关联数据库文件 -->
+    <context:property-placeholder location="classpath:database.properties"/>
+
+    <!-- 2.数据库连接池 -->
+    <!--数据库连接池
+        dbcp 半自动化操作 不能自动连接
+        c3p0 自动化操作（自动的加载配置文件 并且设置到对象里面）
+    -->
+    <bean id="dataSource" class="com.mchange.v2.c3p0.ComboPooledDataSource">
+
+        <!-- 配置连接池属性 -->
+        <property name="driverClass" value="${jdbc.driver}"/>
+        <property name="jdbcUrl" value="${jdbc.url}"/>
+        <property name="user" value="${jdbc.username}"/>
+        <property name="password" value="${jdbc.password}"/>
+
+        <!-- c3p0连接池的私有属性 -->
+        <property name="maxPoolSize" value="30"/>
+        <property name="minPoolSize" value="10"/>
+
+        <!-- 关闭连接后不自动commit -->
+        <property name="autoCommitOnClose" value="false"/>
+
+        <!-- 获取连接超时时间 -->
+        <property name="checkoutTimeout" value="10000"/>
+
+        <property name="maxIdleTime" value="1800"/>
+        <property name="maxIdleTimeExcessConnections" value="300"/>
+        <property name="maxConnectionAge" value="3600"/>
+
+        <!-- 当获取连接失败重试次数 -->
+        <property name="acquireRetryAttempts" value="2"/>
+
+    </bean>
+
+    <!-- 3.配置SqlSessionFactory对象 -->
+    <bean id="sqlSessionFactory" class="org.mybatis.spring.SqlSessionFactoryBean">
+
+        <!-- 注入数据库连接池 -->
+        <property name="dataSource" ref="dataSource"/>
+
+        <!-- 配置MyBatis全局配置文件:mybatis-config.xml -->
+        <property name="configLocation" value="classpath:mybatis-config.xml"/>
+
+    </bean>
+
+    <!-- 4.配置扫描 Mapper 接口包，动态实现 Mapper 接口注入到spring容器中 -->
+    <!--解释 ：https://www.cnblogs.com/jpfss/p/7799806.html-->
+
+    <bean class="org.mybatis.spring.mapper.MapperScannerConfigurer">
+
+        <!-- 注入sqlSessionFactory -->
+        <property name="sqlSessionFactoryBeanName" value="sqlSessionFactory"/>
+
+        <!-- 给出需要扫描 Mapper 接口包 -->
+        <property name="basePackage" value="com.zst.mapper"/>
+    </bean>
+
+    <!-- 5.指定需要扫描的包（包括子包），使注解生效。dao包在mybatis-spring组件中已经扫描，这里不在需要扫描 -->
+    <context:component-scan base-package="com.zst.service" />
+
+    <!-- 6.添加事务支持 -->
+    <bean id="transactionManager"
+          class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+
+        <!--注入数据库连接池-->
+        <property name="dataSource" ref="dataSource" />
+    </bean>
+
+    <!--结合AOP实现事务的织入-->
+    <!--配置事务通知-->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+
+        <!--配置哪些方法使用什么样的事务,配置事务的传播特性-->
+        <!--配置事务的传播特性：new  propagation = "REQUIRED"  默认-->
+        <tx:attributes>
+            <!-- * 代表所有方法-->
+            <tx:method name="*" propagation="REQUIRED"/>
+        </tx:attributes>
+    </tx:advice>
+
+    <!--配置aop置入事务-->
+    <aop:config>
+        <!--切入点-->
+        <aop:pointcut id="txPointcut" expression="execution(* com.zst.mapper.*.*(..))"/>
+        <!--切入-->
+        <aop:advisor advice-ref="txAdvice" pointcut-ref="txPointcut"/>
+    </aop:config>
+</beans>
