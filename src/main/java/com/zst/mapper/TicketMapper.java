@@ -18,7 +18,7 @@ import java.util.Map;
 @Repository
 public interface TicketMapper {
 
-    // 查询全部车票信息带分页
+    // 查询全部车票信息带分 页
     List<Ticket> getAllTicket(Map<String,Object> map);
 
     // 统计指定日期的全部班次售票数量
